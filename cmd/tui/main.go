@@ -1,60 +1,19 @@
 package main
 
 import (
-	"errors"
-	"fmt"
+	"cmp"
+	"flag"
+	"log"
 	"os"
 	"path/filepath"
-	"strings"
+	"slices"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/dhowden/tag"
 )
 
-/* music Model */
-type music struct {
-	FilePath string
-	Name     string
-	Artist   string
-	// err      error // will be useful later on
-}
-
-// we need to implement list.item interface for bubbletea lists
-func (m *music) FilterValue() string {
-	return m.Name
-}
-
-func (m *music) Title() string {
-	return m.Name
-}
-
-func (m *music) Description() string {
-	return m.Artist
-}
-
-func (m *music) setData() error {
-	f, err := os.Open(m.FilePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	fMeta, err := tag.ReadFrom(f)
-	if err != nil {
-		if errors.Is(err, tag.ErrNoTagsFound) {
-			name := filepath.Base(f.Name())
-			m.Name = strings.TrimSuffix(name, filepath.Ext(name))
-			m.Artist = "UNKNOWN"
-			return nil
-		}
-		return err
-	}
-	m.Name = fMeta.Title()
-	m.Artist = fMeta.Artist()
-	return nil
-}
-
 /* Main model */
+
 type Model struct {
 	path string
 	list list.Model
@@ -83,6 +42,26 @@ func (m *Model) initList(path string, width, height int) error {
 	return nil
 }
 
+/* Implement Bubbletea model */
+
+func (m *Model) Init() tea.Cmd {
+	return nil
+}
+
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.initList(m.path, msg.Width, msg.Height)
+	}
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
+	return m, cmd
+}
+
+func (m *Model) View() string {
+	return m.list.View()
+}
+
 func processDir(path string) ([]list.Item, error) {
 	var collection []list.Item
 	walk := func(path string, f os.FileInfo, err error) error {
@@ -106,41 +85,17 @@ func processDir(path string) ([]list.Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	slices.SortFunc(collection, func(a, b list.Item) int {
+		return cmp.Compare(a.FilterValue(), b.FilterValue())
+	})
 	return collection, nil
 }
 
-func isMusic(file string) bool {
-	switch filepath.Ext(file) {
-	case ".wav", ".mp3", ".ogg", ".flac":
-		return true
-	}
-	return false
-}
-
-/* Implement Bubbletea model */
-
-func (m *Model) Init() tea.Cmd {
-	return nil
-}
-
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.initList(m.path, msg.Width, msg.Height)
-	}
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	return m, cmd
-}
-
-func (m *Model) View() string {
-	return m.list.View()
-}
-
 func main() {
-	p := tea.NewProgram(newModel("test_files"))
+	flag.Parse()
+	path := flag.Arg(0)
+	p := tea.NewProgram(newModel(path))
 	if _, err := p.Run(); err != nil {
-		fmt.Printf("Alas, there's been an error: %v", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 }

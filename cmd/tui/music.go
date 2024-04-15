@@ -14,7 +14,7 @@ type music struct {
 	FilePath string
 	Name     string
 	Artist   string
-	// err      error // will be useful later on
+	err      error
 }
 
 // we need to implement list.item interface for bubbletea lists

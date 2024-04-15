@@ -67,6 +67,8 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.initList(m.path, msg.Width/2, msg.Height)
@@ -75,22 +77,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.musicInfo.generate(music)
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "up", "w":
-			idx := m.list.Index() - 1
-			if idx >= 0 {
-				music := m.list.Items()[idx].(*music)
-				m.musicInfo.generate(music)
-			}
-		case "down", "s":
-			idx := m.list.Index() + 1
-			if idx < len(m.list.Items()) {
-				music := m.list.Items()[idx].(*music)
-				m.musicInfo.generate(music)
-			}
+		case "up", "w", "down", "s":
+			music := m.list.SelectedItem().(*music)
+			m.musicInfo.generate(music)
 		}
 	}
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
 

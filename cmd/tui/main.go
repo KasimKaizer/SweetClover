@@ -25,7 +25,7 @@ type Model struct {
 }
 
 func newModel(path string) (*Model, error) {
-	model := &Model{}
+	model := &Model{style: newStyles(0, 0)}
 	err := model.initList(path)
 	return model, err
 }
@@ -83,6 +83,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
+	if m.style.height == 0 {
+		return "Loading..."
+	}
 	return m.homePageView()
 }
 

@@ -82,13 +82,13 @@ func (m *Model) formatMetaData(img string) string {
 
 func (m *Model) homePageView() string {
 
-	img, err := m.selected.GetCoverArtASCII(
-		fineTuneSize(m.style.height, 0.6),
-		fineTuneSize(m.style.width, 0.35))
+	// img, err := m.selected.GetCoverArtASCII(
+	// 	fineTuneSize(m.style.height, 0.6),
+	// 	fineTuneSize(m.style.width, 0.35))
 
-	if err != nil {
-		img = "Error"
-	}
+	// if err != nil {
+	// 	img = "Error"
+	// }
 
 	return lipgloss.JoinHorizontal(lipgloss.Left,
 		lipgloss.Place(m.style.width/2,
@@ -97,7 +97,7 @@ func (m *Model) homePageView() string {
 			lipgloss.Left,
 			m.list.View(),
 		),
-		m.formatMetaData(img),
+		m.formatMetaData(m.displayedImg),
 	)
 }
 

@@ -42,9 +42,10 @@ func (m *tuiMusic) Description() string {
 /* Main Model */
 
 type Model struct {
-	selected *tuiMusic
-	list     list.Model
-	style    *styles
+	selected     *tuiMusic
+	displayedImg string
+	list         list.Model
+	style        *styles
 }
 
 func newModel(path string) (*Model, error) {
@@ -59,7 +60,6 @@ func (m *Model) initList(path string) error {
 		return err
 	}
 	var collection []list.Item
-
 	if fileInfo.IsDir() {
 		collection, err = processDir(path)
 		if err != nil {
@@ -90,8 +90,11 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
+	// list's update method
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(msg.Width, msg.Height)
@@ -101,8 +104,27 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "up", "k", "down", "j", "right", "left":
 			m.selected = m.list.SelectedItem().(*tuiMusic)
+
 		}
+	case gotImage:
+		if msg.idx != m.list.Index() {
+			break
+		}
+		m.displayedImg = msg.image
 	}
+
+	// A way to have a loading image
+	switch msg.(type) {
+	case tea.KeyMsg, tea.WindowSizeMsg:
+		m.displayedImg = "LOADING..."
+		cmd = tea.Batch(cmd, tea.Batch(cmd, cmdWithArg(
+			m.selected,
+			fineTuneSize(m.style.height, 0.6),
+			fineTuneSize(m.style.width, 0.35),
+			m.list.Index(),
+		)))
+	}
+
 	return m, cmd
 }
 
@@ -114,6 +136,20 @@ func (m *Model) View() string {
 }
 
 /* End of Bubble Tea required methods */
+type gotImage struct {
+	image string
+	idx   int
+}
+
+func cmdWithArg(music *tuiMusic, height, width, idx int) tea.Cmd {
+	return func() tea.Msg {
+		img, err := music.GetCoverArtASCII(height, width)
+		if err != nil {
+			img = "ERROR"
+		}
+		return gotImage{image: img, idx: idx}
+	}
+}
 
 func processDir(path string) ([]list.Item, error) {
 	var collection []list.Item
@@ -137,7 +173,10 @@ func processDir(path string) ([]list.Item, error) {
 			newMusic := &tuiMusic{
 				Music: &music.Music{FilePath: path},
 			}
-			setErr(newMusic.PopulateMusicMeta())
+			err := newMusic.PopulateMusicMeta()
+			if err != nil {
+				setErr(err)
+			}
 			mChan <- newMusic
 		}()
 		return nil // error will always be nil
@@ -162,12 +201,13 @@ func processDir(path string) ([]list.Item, error) {
 func main() {
 	flag.Parse()
 	path := flag.Arg(0)
-	path = "/Users/kaizersuterwala/projects_go/sweet_clover/test_files"
+	// path = ""
 	model, err := newModel(path)
 	if err != nil {
 		log.Fatal(err)
 	}
-	p := tea.NewProgram(model)
+	p := tea.NewProgram(model, tea.WithAltScreen())
+	p.SetWindowTitle("Sweet Clover")
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}

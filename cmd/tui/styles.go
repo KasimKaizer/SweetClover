@@ -55,7 +55,7 @@ func newStyles(width, height int) *styles {
 
 func (m *Model) formatMetaData(img string) string {
 
-	maxSentenceWidth := fineTuneSize(m.style.width, 0.3)
+	// maxSentenceWidth := fineTuneSize(m.style.width, 0.3)
 
 	return lipgloss.NewStyle().
 		Align(lipgloss.Left, lipgloss.Center).
@@ -72,9 +72,9 @@ func (m *Model) formatMetaData(img string) string {
 			m.style.titleStyle.Render(
 				fmt.Sprintf(
 					_infoBoxTmpl,
-					m.style.textStyle.Render(truncate(m.selected.Name, maxSentenceWidth)),
-					m.style.textStyle.Render(truncate(m.selected.Album, maxSentenceWidth)),
-					m.style.textStyle.Render(truncate(m.selected.Artist, maxSentenceWidth)),
+					m.style.textStyle.Render(truncate(m.selected.Name, _globalTextWidth)),
+					m.style.textStyle.Render(truncate(m.selected.Album, _globalTextWidth)),
+					m.style.textStyle.Render(truncate(m.selected.Artist, _globalTextWidth)),
 					m.style.textStyle.Render(strconv.Itoa(m.selected.ReleaseYear))),
 			),
 		)

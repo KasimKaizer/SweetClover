@@ -9,23 +9,25 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/KasimKaizer/SweetClover/internal/music"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 /* Main model */
 
 type Model struct {
-	selected *MusicInfoModel
+	selected *music.Music
 	list     list.Model
-	err      error // will be useful later on
+	style    *styles
+	// err      error // will be useful later on
 }
 
-func newModel(path string) *Model {
-	model := &Model{selected: createMusicInfo(0, 0)}
-	model.initList(path)
-	return model
+func newModel(path string) (*Model, error) {
+	model := &Model{}
+	err := model.initList(path)
+	return model, err
 }
 
 func (m *Model) initList(path string) error {
@@ -33,16 +35,27 @@ func (m *Model) initList(path string) error {
 	if err != nil {
 		return err
 	}
-	music := []list.Item{&music{FilePath: path}}
+	var collection []list.Item
+
 	if fileInfo.IsDir() {
-		music, err = processDir(path)
+		collection, err = processDir(path)
 		if err != nil {
 			return err
 		}
+	} else {
+		newMusic := &music.Music{
+			FilePath: path,
+		}
+		err := newMusic.PopulateMusicMeta()
+		if err != nil {
+			return err
+		}
+		collection = append(collection, newMusic)
 	}
+
 	m.list = list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
 	m.list.Title = filepath.Base(path)
-	m.list.SetItems(music)
+	m.list.SetItems(collection)
 	return nil
 }
 
@@ -58,47 +71,45 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(msg.Width, msg.Height)
-		m.selected = createMusicInfo(msg.Width, msg.Height)
-		music := m.list.SelectedItem().(*music)
-		m.selected.getMusicMeta(music)
+		m.style = newStyles(msg.Width, msg.Height)
+		m.selected = m.list.SelectedItem().(*music.Music)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up", "w", "down", "s":
-			music := m.list.SelectedItem().(*music)
-			m.selected.getMusicMeta(music)
+			m.selected = m.list.SelectedItem().(*music.Music)
 		}
 	}
 	return m, cmd
 }
 
 func (m *Model) View() string {
-
-	return lipgloss.JoinHorizontal(lipgloss.Left,
-		lipgloss.Place(m.selected.style.width/2,
-			m.selected.style.height,
-			lipgloss.Top,
-			lipgloss.Left,
-			m.list.View(),
-		),
-		m.selected.format(),
-	)
+	return m.homePageView()
 }
+
+/* End of Bubble Tea required methods */
 
 func processDir(path string) ([]list.Item, error) {
 	var collection []list.Item
 	var wg sync.WaitGroup
-	mChan := make(chan *music)
+	var onceErr error
+	var once sync.Once
+	mChan := make(chan *music.Music)
+	setErr := func(err error) {
+		if err != nil {
+			once.Do(func() { onceErr = err })
+		}
+	}
 	walk := func(path string, f os.FileInfo, err error) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if f.IsDir() || !isMusic(path) {
+			if f.IsDir() || !music.IsMusic(path) {
 				return
 			}
-			newMusic := &music{
+			newMusic := &music.Music{
 				FilePath: path,
 			}
-			newMusic.err = newMusic.setData()
+			setErr(newMusic.PopulateMusicMeta())
 			mChan <- newMusic
 		}()
 		return nil // error will always be nil
@@ -109,13 +120,13 @@ func processDir(path string) ([]list.Item, error) {
 		close(mChan)
 	}()
 	for item := range mChan {
-		if item.err != nil {
-			return nil, item.err
+		if onceErr != nil {
+			return nil, onceErr
 		}
 		collection = append(collection, item)
 	}
 	slices.SortFunc(collection, func(a, b list.Item) int {
-		return cmp.Compare(a.FilterValue(), b.FilterValue())
+		return cmp.Compare(a.(*music.Music).Name, b.(*music.Music).Name)
 	})
 	return collection, nil
 }
@@ -124,7 +135,11 @@ func main() {
 	flag.Parse()
 	path := flag.Arg(0)
 	path = "/Users/kaizersuterwala/projects_go/sweet_clover/test_files"
-	p := tea.NewProgram(newModel(path))
+	model, err := newModel(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}

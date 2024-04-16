@@ -24,3 +24,4 @@ go.work
 
 # Other files
 _project_plan.txt
+.DS_Store

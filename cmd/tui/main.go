@@ -15,13 +15,36 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-/* Main model */
+var (
+	_globalTextWidth = 0 // TODO: figure a way out where we won't need this
+)
+
+/* List model */
+
+type tuiMusic struct {
+	*music.Music
+}
+
+func (m *tuiMusic) FilterValue() string {
+	return m.Name
+}
+
+func (m *tuiMusic) Title() string {
+	return truncate(m.Name, _globalTextWidth)
+}
+
+func (m *tuiMusic) Description() string {
+	return truncate(m.Artist, _globalTextWidth)
+}
+
+/* End List Model */
+
+/* Main Model */
 
 type Model struct {
-	selected *music.Music
+	selected *tuiMusic
 	list     list.Model
 	style    *styles
-	// err      error // will be useful later on
 }
 
 func newModel(path string) (*Model, error) {
@@ -43,8 +66,8 @@ func (m *Model) initList(path string) error {
 			return err
 		}
 	} else {
-		newMusic := &music.Music{
-			FilePath: path,
+		newMusic := &tuiMusic{
+			Music: &music.Music{FilePath: path},
 		}
 		err := newMusic.PopulateMusicMeta()
 		if err != nil {
@@ -56,6 +79,7 @@ func (m *Model) initList(path string) error {
 	m.list = list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
 	m.list.Title = filepath.Base(path)
 	m.list.SetItems(collection)
+	m.selected = collection[0].(*tuiMusic)
 	return nil
 }
 
@@ -72,11 +96,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(msg.Width, msg.Height)
 		m.style = newStyles(msg.Width, msg.Height)
-		m.selected = m.list.SelectedItem().(*music.Music)
+		_globalTextWidth = fineTuneSize(msg.Width, 0.3)
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "up", "w", "down", "s":
-			m.selected = m.list.SelectedItem().(*music.Music)
+		case "up", "k", "down", "j", "right", "left":
+			m.selected = m.list.SelectedItem().(*tuiMusic)
 		}
 	}
 	return m, cmd
@@ -94,9 +118,10 @@ func (m *Model) View() string {
 func processDir(path string) ([]list.Item, error) {
 	var collection []list.Item
 	var wg sync.WaitGroup
+	mChan := make(chan *tuiMusic)
+
 	var onceErr error
 	var once sync.Once
-	mChan := make(chan *music.Music)
 	setErr := func(err error) {
 		if err != nil {
 			once.Do(func() { onceErr = err })
@@ -109,8 +134,8 @@ func processDir(path string) ([]list.Item, error) {
 			if f.IsDir() || !music.IsMusic(path) {
 				return
 			}
-			newMusic := &music.Music{
-				FilePath: path,
+			newMusic := &tuiMusic{
+				Music: &music.Music{FilePath: path},
 			}
 			setErr(newMusic.PopulateMusicMeta())
 			mChan <- newMusic
@@ -129,7 +154,7 @@ func processDir(path string) ([]list.Item, error) {
 		collection = append(collection, item)
 	}
 	slices.SortFunc(collection, func(a, b list.Item) int {
-		return cmp.Compare(a.(*music.Music).Name, b.(*music.Music).Name)
+		return cmp.Compare(a.(*tuiMusic).Name, b.(*tuiMusic).Name)
 	})
 	return collection, nil
 }

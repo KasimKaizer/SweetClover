@@ -34,18 +34,6 @@ func NewMusic(path string) (*Music, error) {
 	return model, err
 }
 
-func (m *Music) FilterValue() string {
-	return m.Name
-}
-
-func (m *Music) Title() string {
-	return m.Name
-}
-
-func (m *Music) Description() string {
-	return m.Artist
-}
-
 func (m *Music) PopulateMusicMeta() error {
 	f, err := os.Open(m.FilePath)
 	if err != nil {

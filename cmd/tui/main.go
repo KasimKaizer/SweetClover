@@ -15,14 +15,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var (
-	_globalTextWidth = 0 // TODO: figure a way out where we won't need this
-)
+// var (
+// 	_globalTextWidth = 0 // TODO: figure a way out where we won't need this
+// )
 
 /* List model */
 
 type tuiMusic struct {
 	*music.Music
+	displayedTextWidth *int
 }
 
 func (m *tuiMusic) FilterValue() string {
@@ -30,11 +31,11 @@ func (m *tuiMusic) FilterValue() string {
 }
 
 func (m *tuiMusic) Title() string {
-	return truncate(m.Name, _globalTextWidth)
+	return truncate(m.Name, *m.displayedTextWidth)
 }
 
 func (m *tuiMusic) Description() string {
-	return truncate(m.Artist, _globalTextWidth)
+	return truncate(m.Artist, *m.displayedTextWidth)
 }
 
 /* End List Model */
@@ -42,10 +43,11 @@ func (m *tuiMusic) Description() string {
 /* Main Model */
 
 type Model struct {
-	selected     *tuiMusic
-	displayedImg string
-	list         list.Model
-	style        *styles
+	selected           *tuiMusic
+	list               list.Model
+	style              *styles
+	displayedImg       string
+	displayedTextWidth int
 }
 
 func newModel(path string) (*Model, error) {
@@ -60,14 +62,16 @@ func (m *Model) initList(path string) error {
 		return err
 	}
 	var collection []list.Item
+
 	if fileInfo.IsDir() {
-		collection, err = processDir(path)
+		collection, err = generateMusicCollection(path, &m.displayedTextWidth)
 		if err != nil {
 			return err
 		}
 	} else {
 		newMusic := &tuiMusic{
-			Music: &music.Music{FilePath: path},
+			Music:              &music.Music{FilePath: path},
+			displayedTextWidth: &m.displayedTextWidth,
 		}
 		err := newMusic.PopulateMusicMeta()
 		if err != nil {
@@ -99,12 +103,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(msg.Width, msg.Height)
 		m.style = newStyles(msg.Width, msg.Height)
-		_globalTextWidth = fineTuneSize(msg.Width, 0.3)
+		m.displayedTextWidth = fineTuneSize(msg.Width, 0.3)
+		// _globalTextWidth = fineTuneSize(msg.Width, 0.3)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up", "k", "down", "j", "right", "left":
 			m.selected = m.list.SelectedItem().(*tuiMusic)
-
 		}
 	case gotImage:
 		if msg.idx != m.list.Index() {
@@ -117,7 +121,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
 	case tea.KeyMsg, tea.WindowSizeMsg:
 		m.displayedImg = "LOADING..."
-		cmd = tea.Batch(cmd, tea.Batch(cmd, cmdWithArg(
+		cmd = tea.Batch(cmd, tea.Batch(cmd, lazyLoadImage(
 			m.selected,
 			fineTuneSize(m.style.height, 0.6),
 			fineTuneSize(m.style.width, 0.35),
@@ -141,7 +145,7 @@ type gotImage struct {
 	idx   int
 }
 
-func cmdWithArg(music *tuiMusic, height, width, idx int) tea.Cmd {
+func lazyLoadImage(music *tuiMusic, height, width, idx int) tea.Cmd {
 	return func() tea.Msg {
 		img, err := music.GetCoverArtASCII(height, width)
 		if err != nil {
@@ -151,7 +155,7 @@ func cmdWithArg(music *tuiMusic, height, width, idx int) tea.Cmd {
 	}
 }
 
-func processDir(path string) ([]list.Item, error) {
+func generateMusicCollection(path string, textWidth *int) ([]list.Item, error) {
 	var collection []list.Item
 	var wg sync.WaitGroup
 	mChan := make(chan *tuiMusic)
@@ -171,7 +175,8 @@ func processDir(path string) ([]list.Item, error) {
 				return
 			}
 			newMusic := &tuiMusic{
-				Music: &music.Music{FilePath: path},
+				Music:              &music.Music{FilePath: path},
+				displayedTextWidth: textWidth,
 			}
 			err := newMusic.PopulateMusicMeta()
 			if err != nil {
@@ -192,7 +197,10 @@ func processDir(path string) ([]list.Item, error) {
 		}
 		collection = append(collection, item)
 	}
-	slices.SortFunc(collection, func(a, b list.Item) int {
+
+	// TODO: For some reason sorting doesn't work, check out how list components is
+	//       created, and if its possible to sort
+	slices.SortStableFunc(collection, func(a, b list.Item) int {
 		return cmp.Compare(a.(*tuiMusic).Name, b.(*tuiMusic).Name)
 	})
 	return collection, nil

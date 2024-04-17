@@ -72,9 +72,9 @@ func (m *Model) formatMetaData(img string) string {
 			m.style.titleStyle.Render(
 				fmt.Sprintf(
 					_infoBoxTmpl,
-					m.style.textStyle.Render(truncate(m.selected.Name, _globalTextWidth)),
-					m.style.textStyle.Render(truncate(m.selected.Album, _globalTextWidth)),
-					m.style.textStyle.Render(truncate(m.selected.Artist, _globalTextWidth)),
+					m.style.textStyle.Render(truncate(m.selected.Name, m.displayedTextWidth)),
+					m.style.textStyle.Render(truncate(m.selected.Album, m.displayedTextWidth)),
+					m.style.textStyle.Render(truncate(m.selected.Artist, m.displayedTextWidth)),
 					m.style.textStyle.Render(strconv.Itoa(m.selected.ReleaseYear))),
 			),
 		)

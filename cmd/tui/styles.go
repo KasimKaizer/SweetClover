@@ -53,7 +53,7 @@ func newStyles(width, height int) *styles {
 	}
 }
 
-func (m *Model) formatMetaData(img string) string {
+func (m *Model) formatMetaData() string {
 
 	// maxSentenceWidth := fineTuneSize(m.style.width, 0.3)
 
@@ -66,7 +66,7 @@ func (m *Model) formatMetaData(img string) string {
 				fineTuneSize(m.style.width, 0.5),
 				fineTuneSize(m.style.height, 0.7),
 				lipgloss.Center, lipgloss.Center,
-				m.style.imageStyle.Render(img),
+				m.style.imageStyle.Render(m.displayedImg),
 			),
 			// music metadata rendering options
 			m.style.titleStyle.Render(
@@ -97,7 +97,44 @@ func (m *Model) homePageView() string {
 			lipgloss.Left,
 			m.list.View(),
 		),
-		m.formatMetaData(m.displayedImg),
+		m.formatMetaData(),
+	)
+}
+
+func (m *Model) musicPageView() string {
+
+	return lipgloss.JoinVertical(lipgloss.Top,
+		lipgloss.Place(m.style.width,
+			m.style.height/2,
+			lipgloss.Center,
+			lipgloss.Center,
+			m.progress.ViewAs(0.5),
+		),
+		m.musicViewBottom(),
+	)
+}
+
+func (m *Model) musicViewBottom() string {
+
+	return lipgloss.JoinHorizontal(lipgloss.Left,
+		lipgloss.Place(0,
+			m.style.height/2,
+			lipgloss.Bottom,
+			lipgloss.Right,
+			m.list.View(),
+		),
+		m.style.titleStyle.
+			PaddingLeft(fineTuneSize(m.style.width, 0.2)).
+			AlignVertical(lipgloss.Center).
+			AlignHorizontal(lipgloss.Left).
+			Render(
+				fmt.Sprintf(
+					_infoBoxTmpl,
+					m.style.textStyle.Render(truncate(m.selected.Name, m.displayedTextWidth)),
+					m.style.textStyle.Render(truncate(m.selected.Album, m.displayedTextWidth)),
+					m.style.textStyle.Render(truncate(m.selected.Artist, m.displayedTextWidth)),
+					m.style.textStyle.Render(strconv.Itoa(m.selected.ReleaseYear))),
+			),
 	)
 }
 

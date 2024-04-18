@@ -14,10 +14,8 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.list.SetSize(msg.Width, msg.Height)
 		m.style = newStyles(msg.Width, msg.Height)
-		m.displayedTextWidth = fineTuneSize(msg.Width, 0.3)
-		// _globalTextWidth = fineTuneSize(msg.Width, 0.3)
+		m.setHomeScreenOpts()
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up", "k", "down", "j", "right", "left":
@@ -25,6 +23,9 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if item != nil {
 				m.selected = item.(*tuiMusic)
 			}
+		case "enter":
+			m.displayedScreen = musicScreen
+			m.setMusicScreenOpts()
 		}
 	case gotImage:
 		if msg.idx != m.list.Index() {
@@ -48,7 +49,53 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-/* End of Bubble Tea required methods */
+func (m *Model) updateMusicScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.style = newStyles(msg.Width, msg.Height)
+		m.setMusicScreenOpts()
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyUp:
+			m.list.SetShowTitle(false)
+		case tea.KeyEsc:
+			m.displayedScreen = homeScreen
+			m.style = newStyles(m.style.width, m.style.height)
+			m.setHomeScreenOpts()
+			cmds = append(cmds, lazyLoadImageCmd(
+				m.selected,
+				fineTuneSize(m.style.height, 0.6),
+				fineTuneSize(m.style.width, 0.35),
+				m.list.Index(),
+			))
+		}
+
+	}
+	return m, tea.Batch(cmds...)
+}
+
+func (m *Model) setMusicScreenOpts() {
+	m.list.SetShowTitle(false)
+	m.list.SetFilteringEnabled(false)
+	m.list.SetShowFilter(false)
+	m.list.SetShowStatusBar(false)
+	m.list.SetSize(m.style.width, fineTuneSize(m.style.height, 0.5))
+	m.progress.Width = fineTuneSize(m.style.width, 0.8)
+	m.displayedTextWidth = fineTuneSize(m.style.width, 0.25)
+}
+
+func (m *Model) setHomeScreenOpts() {
+	m.list.SetShowTitle(true)
+	m.list.SetFilteringEnabled(true)
+	m.list.SetShowFilter(true)
+	m.list.SetShowStatusBar(true)
+	m.list.SetSize(m.style.width, m.style.height)
+	m.displayedTextWidth = fineTuneSize(m.style.width, 0.3)
+}
+
+/* various custom cmd */
 type gotImage struct {
 	image string
 	idx   int

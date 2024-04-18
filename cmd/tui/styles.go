@@ -7,14 +7,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type styles struct {
-	titleStyle lipgloss.Style
-	textStyle  lipgloss.Style
-	imageStyle lipgloss.Style
-	width      int
-	height     int
-}
-
 const (
 	_infoBoxTmpl = `
 Name: %s
@@ -27,77 +19,70 @@ ReleaseYear: %s
 `
 )
 
-func newStyles(width, height int) *styles {
+func (m *Model) formatMetaData(img string) string {
 
 	titleStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#9B9B9B")).
-		PaddingLeft(fineTuneSize(width, 0.075)).
-		Width(fineTuneSize(width, 0.5))
+		PaddingLeft(fineTuneSize(m.width, 0.075)).
+		Width(fineTuneSize(m.width, 0.5))
 
 	textStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#FFFFFF")).
-		Width(fineTuneSize(width, 0.5))
+		Width(fineTuneSize(m.width, 0.5))
 
 	imgStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(
 			lipgloss.Color(lipgloss.Color("#3C3C3C")),
 		)
-
-	return &styles{
-		titleStyle: titleStyle,
-		textStyle:  textStyle,
-		imageStyle: imgStyle,
-		width:      width,
-		height:     height,
-	}
-}
-
-func (m *Model) formatMetaData(img string) string {
-
-	// maxSentenceWidth := fineTuneSize(m.style.width, 0.3)
-
 	return lipgloss.NewStyle().
 		Align(lipgloss.Left, lipgloss.Center).
-		PaddingTop(fineTuneSize(m.style.height, 0.05)).
+		PaddingTop(fineTuneSize(m.height, 0.03)).
 		Render(
 			// image rendering options
 			lipgloss.Place(
-				fineTuneSize(m.style.width, 0.5),
-				fineTuneSize(m.style.height, 0.7),
+				fineTuneSize(m.width, 0.5),
+				fineTuneSize(m.height, 0.6),
 				lipgloss.Center, lipgloss.Center,
-				m.style.imageStyle.Render(img),
+				imgStyle.Render(img),
 			),
 			// music metadata rendering options
-			m.style.titleStyle.Render(
+			titleStyle.Render(
 				fmt.Sprintf(
 					_infoBoxTmpl,
-					m.style.textStyle.Render(truncate(m.selected.Name, m.displayedTextWidth)),
-					m.style.textStyle.Render(truncate(m.selected.Album, m.displayedTextWidth)),
-					m.style.textStyle.Render(truncate(m.selected.Artist, m.displayedTextWidth)),
-					m.style.textStyle.Render(strconv.Itoa(m.selected.ReleaseYear))),
+					textStyle.Render(truncate(m.selected.Name, fineTuneSize(m.width, 0.3))),
+					textStyle.Render(truncate(m.selected.Album, fineTuneSize(m.width, 0.3))),
+					textStyle.Render(truncate(m.selected.Artist, fineTuneSize(m.width, 0.3))),
+					textStyle.Render(strconv.Itoa(m.selected.ReleaseYear))),
 			),
 		)
 }
 
 func (m *Model) homePageView() string {
-
-	// img, err := m.selected.GetCoverArtASCII(
-	// 	fineTuneSize(m.style.height, 0.6),
-	// 	fineTuneSize(m.style.width, 0.35))
-
-	// if err != nil {
-	// 	img = "Error"
-	// }
+	playingText := truncate(m.selected.Name, fineTuneSize(m.width, 0.3))
+	playingTextPadding := fineTuneSize((fineTuneSize(m.width, 0.5) - lipgloss.Width(playingText)), 0.5)
 
 	return lipgloss.JoinHorizontal(lipgloss.Left,
-		lipgloss.Place(m.style.width/2,
-			m.style.height,
+		lipgloss.Place(
+			fineTuneSize(m.width, 0.5),
+			m.height,
 			lipgloss.Top,
 			lipgloss.Left,
 			m.list.View(),
 		),
-		m.formatMetaData(m.displayedImg),
+		lipgloss.JoinVertical(lipgloss.Top,
+			lipgloss.NewStyle().
+				PaddingTop(fineTuneSize(m.height, 0.04)).
+				Foreground(lipgloss.Color("#9B9B9B")).
+				PaddingLeft(playingTextPadding).
+				Width(fineTuneSize(m.width, 0.5)).
+				Render(playingText),
+			lipgloss.NewStyle().
+				PaddingTop(fineTuneSize(m.height, 0.03)).
+				PaddingLeft(fineTuneSize(m.width, 0.05)).
+				Render(m.progress.ViewAs(0.1)),
+			m.formatMetaData(m.displayedImg),
+		),
 	)
 }
 

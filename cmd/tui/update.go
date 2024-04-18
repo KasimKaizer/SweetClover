@@ -15,9 +15,9 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(msg.Width, msg.Height)
-		m.style = newStyles(msg.Width, msg.Height)
-		m.displayedTextWidth = fineTuneSize(msg.Width, 0.3)
-		// _globalTextWidth = fineTuneSize(msg.Width, 0.3)
+		m.progress.Width = fineTuneSize(msg.Width, 0.4)
+		m.width, m.height = msg.Width, msg.Height
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up", "k", "down", "j", "right", "left":
@@ -39,8 +39,8 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.displayedImg = "LOADING..."
 		cmds = append(cmds, lazyLoadImageCmd(
 			m.selected,
-			fineTuneSize(m.style.height, 0.6),
-			fineTuneSize(m.style.width, 0.35),
+			fineTuneSize(m.height, 0.55),
+			fineTuneSize(m.width, 0.35),
 			m.list.Index(),
 		))
 	}

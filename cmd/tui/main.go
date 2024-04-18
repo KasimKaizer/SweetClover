@@ -13,14 +13,8 @@ import (
 	"github.com/KasimKaizer/SweetClover/internal/music"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
-)
-
-type screen int
-
-const (
-	homeScreen screen = iota
-	musicScreen
 )
 
 /* List model */
@@ -35,11 +29,11 @@ func (m *tuiMusic) FilterValue() string {
 }
 
 func (m *tuiMusic) Title() string {
-	return truncate(m.Name, *m.displayedTextWidth)
+	return truncate(m.Name, fineTuneSize(*m.displayedTextWidth, 0.3))
 }
 
 func (m *tuiMusic) Description() string {
-	return truncate(m.Artist, *m.displayedTextWidth)
+	return truncate(m.Artist, fineTuneSize(*m.displayedTextWidth, 0.3))
 }
 
 /* End List Model */
@@ -47,19 +41,13 @@ func (m *tuiMusic) Description() string {
 /* Main Model */
 
 type Model struct {
-	selected           *tuiMusic
-	list               list.Model
-	style              *styles
-	displayedScreen    screen
-	displayedImg       string
-	displayedTextWidth int
+	selected     *tuiMusic
+	list         list.Model
+	progress     progress.Model
+	displayedImg string
+	width        int
+	height       int
 }
-
-// func newModel(path string) (*Model, error) {
-
-// 	err := model.initList(path)
-// 	return model, err
-// }
 
 func newModel(path string) (*Model, error) {
 
@@ -69,19 +57,21 @@ func newModel(path string) (*Model, error) {
 	}
 
 	var collection []list.Item
-	model := &Model{style: newStyles(0, 0), displayedScreen: homeScreen}
+	model := &Model{
+		progress: progress.New(progress.WithDefaultScaledGradient(), progress.WithoutPercentage()),
+	}
 
 	if fileInfo.IsDir() {
-		collection, err = generateMusicCollection(path, &model.displayedTextWidth)
+		collection, err = generateMusicCollection(path, &model.width)
 		if err != nil {
 			return nil, err
 		}
 
 	} else {
-		model.displayedScreen = musicScreen
+		// model.displayedScreen = musicScreen
 		newMusic := &tuiMusic{
 			Music:              &music.Music{FilePath: path},
-			displayedTextWidth: &model.displayedTextWidth,
+			displayedTextWidth: &model.width,
 		}
 		err := newMusic.PopulateMusicMeta()
 		if err != nil {
@@ -108,15 +98,11 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-
-	if m.displayedScreen == homeScreen {
-		return m.updateHomeScreen(msg)
-	}
-	return m, nil
+	return m.updateHomeScreen(msg)
 }
 
 func (m *Model) View() string {
-	if m.style.height == 0 {
+	if m.height == 0 {
 		return "Loading..."
 	}
 	return m.homePageView()

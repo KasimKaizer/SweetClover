@@ -13,7 +13,6 @@ import (
 	"github.com/KasimKaizer/SweetClover/internal/music"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -51,11 +50,16 @@ type Model struct {
 	selected           *tuiMusic
 	list               list.Model
 	style              *styles
-	progress           progress.Model
 	displayedScreen    screen
 	displayedImg       string
 	displayedTextWidth int
 }
+
+// func newModel(path string) (*Model, error) {
+
+// 	err := model.initList(path)
+// 	return model, err
+// }
 
 func newModel(path string) (*Model, error) {
 
@@ -65,11 +69,7 @@ func newModel(path string) (*Model, error) {
 	}
 
 	var collection []list.Item
-	model := &Model{
-		style:           newStyles(0, 0),
-		displayedScreen: homeScreen,
-		progress:        progress.New(progress.WithDefaultScaledGradient()),
-	}
+	model := &Model{style: newStyles(0, 0), displayedScreen: homeScreen}
 
 	if fileInfo.IsDir() {
 		collection, err = generateMusicCollection(path, &model.displayedTextWidth)
@@ -109,28 +109,18 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
-	switch m.displayedScreen {
-	case homeScreen:
+	if m.displayedScreen == homeScreen {
 		return m.updateHomeScreen(msg)
-	case musicScreen:
-		return m.updateMusicScreen(msg)
 	}
 	return m, nil
 }
 
 func (m *Model) View() string {
-
 	if m.style.height == 0 {
 		return "Loading..."
 	}
-
-	if m.displayedScreen == homeScreen {
-		return m.homePageView()
-	}
-	return m.musicPageView()
+	return m.homePageView()
 }
-
-/* END Bubbletea model */
 
 func generateMusicCollection(path string, textWidth *int) ([]list.Item, error) {
 	var collection []list.Item

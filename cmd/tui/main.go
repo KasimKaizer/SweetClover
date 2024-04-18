@@ -122,22 +122,6 @@ func (m *Model) View() string {
 	return m.homePageView()
 }
 
-/* End of Bubble Tea required methods */
-type gotImage struct {
-	image string
-	idx   int
-}
-
-func lazyLoadImage(music *tuiMusic, height, width, idx int) tea.Cmd {
-	return func() tea.Msg {
-		img, err := music.GetCoverArtASCII(height, width)
-		if err != nil {
-			img = "ERROR"
-		}
-		return gotImage{image: img, idx: idx}
-	}
-}
-
 func generateMusicCollection(path string, textWidth *int) ([]list.Item, error) {
 	var collection []list.Item
 	var wg sync.WaitGroup

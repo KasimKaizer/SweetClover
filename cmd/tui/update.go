@@ -1,11 +1,16 @@
 package main
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// list's update method
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	var cmds []tea.Cmd
+
+	var listCmd tea.Cmd
+	m.list, listCmd = m.list.Update(msg)
+	cmds = append(cmds, listCmd)
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -16,7 +21,10 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up", "k", "down", "j", "right", "left":
-			m.selected = m.list.SelectedItem().(*tuiMusic)
+			item := m.list.SelectedItem()
+			if item != nil {
+				m.selected = item.(*tuiMusic)
+			}
 		}
 	case gotImage:
 		if msg.idx != m.list.Index() {
@@ -29,13 +37,29 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
 	case tea.KeyMsg, tea.WindowSizeMsg:
 		m.displayedImg = "LOADING..."
-		cmd = tea.Batch(cmd, tea.Batch(cmd, lazyLoadImage(
+		cmds = append(cmds, lazyLoadImageCmd(
 			m.selected,
 			fineTuneSize(m.style.height, 0.6),
 			fineTuneSize(m.style.width, 0.35),
 			m.list.Index(),
-		)))
+		))
 	}
 
-	return m, cmd
+	return m, tea.Batch(cmds...)
+}
+
+/* End of Bubble Tea required methods */
+type gotImage struct {
+	image string
+	idx   int
+}
+
+func lazyLoadImageCmd(music *tuiMusic, height, width, idx int) tea.Cmd {
+	return func() tea.Msg {
+		img, err := music.GetCoverArtASCII(height, width)
+		if err != nil {
+			img = "ERROR"
+		}
+		return gotImage{image: img, idx: idx}
+	}
 }

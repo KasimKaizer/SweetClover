@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"errors"
 	"flag"
 	"log"
 	"os"
@@ -15,9 +16,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// var (
-// 	_globalTextWidth = 0 // TODO: figure a way out where we won't need this
-// )
+type screen int
+
+const (
+	homeScreen screen = iota
+	musicScreen
+)
 
 /* List model */
 
@@ -46,45 +50,55 @@ type Model struct {
 	selected           *tuiMusic
 	list               list.Model
 	style              *styles
+	displayedScreen    screen
 	displayedImg       string
 	displayedTextWidth int
 }
 
-func newModel(path string) (*Model, error) {
-	model := &Model{style: newStyles(0, 0)}
-	err := model.initList(path)
-	return model, err
-}
+// func newModel(path string) (*Model, error) {
 
-func (m *Model) initList(path string) error {
+// 	err := model.initList(path)
+// 	return model, err
+// }
+
+func newModel(path string) (*Model, error) {
+
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
 	var collection []list.Item
+	model := &Model{style: newStyles(0, 0), displayedScreen: homeScreen}
 
 	if fileInfo.IsDir() {
-		collection, err = generateMusicCollection(path, &m.displayedTextWidth)
+		collection, err = generateMusicCollection(path, &model.displayedTextWidth)
 		if err != nil {
-			return err
+			return nil, err
 		}
+
 	} else {
+		model.displayedScreen = musicScreen
 		newMusic := &tuiMusic{
 			Music:              &music.Music{FilePath: path},
-			displayedTextWidth: &m.displayedTextWidth,
+			displayedTextWidth: &model.displayedTextWidth,
 		}
 		err := newMusic.PopulateMusicMeta()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		collection = append(collection, newMusic)
 	}
 
-	m.list = list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
-	m.list.Title = filepath.Base(path)
-	m.list.SetItems(collection)
-	m.selected = collection[0].(*tuiMusic)
-	return nil
+	if len(collection) == 0 {
+		return nil, errors.New("no music files in the provided path")
+	}
+
+	model.list = list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+	model.list.Title = filepath.Base(path)
+	model.list.SetItems(collection)
+	model.selected = collection[0].(*tuiMusic)
+	return model, nil
 }
 
 /* Implement Bubbletea model */
@@ -95,41 +109,10 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
-	// list's update method
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.list.SetSize(msg.Width, msg.Height)
-		m.style = newStyles(msg.Width, msg.Height)
-		m.displayedTextWidth = fineTuneSize(msg.Width, 0.3)
-		// _globalTextWidth = fineTuneSize(msg.Width, 0.3)
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k", "down", "j", "right", "left":
-			m.selected = m.list.SelectedItem().(*tuiMusic)
-		}
-	case gotImage:
-		if msg.idx != m.list.Index() {
-			break
-		}
-		m.displayedImg = msg.image
+	if m.displayedScreen == homeScreen {
+		return m.updateHomeScreen(msg)
 	}
-
-	// A way to have a loading image
-	switch msg.(type) {
-	case tea.KeyMsg, tea.WindowSizeMsg:
-		m.displayedImg = "LOADING..."
-		cmd = tea.Batch(cmd, tea.Batch(cmd, lazyLoadImage(
-			m.selected,
-			fineTuneSize(m.style.height, 0.6),
-			fineTuneSize(m.style.width, 0.35),
-			m.list.Index(),
-		)))
-	}
-
-	return m, cmd
+	return m, nil
 }
 
 func (m *Model) View() string {

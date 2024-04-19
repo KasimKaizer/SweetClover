@@ -44,6 +44,8 @@ type Model struct {
 	selected     *tuiMusic
 	list         list.Model
 	progress     progress.Model
+	controller   *music.Controller
+	done         chan struct{}
 	displayedImg string
 	width        int
 	height       int
@@ -57,8 +59,10 @@ func newModel(path string) (*Model, error) {
 	}
 
 	var collection []list.Item
+
 	model := &Model{
-		progress: progress.New(progress.WithDefaultScaledGradient(), progress.WithoutPercentage()),
+		progress:   progress.New(progress.WithDefaultScaledGradient(), progress.WithoutPercentage()),
+		controller: music.NewController(),
 	}
 
 	if fileInfo.IsDir() {
@@ -68,15 +72,16 @@ func newModel(path string) (*Model, error) {
 		}
 
 	} else {
-		// model.displayedScreen = musicScreen
-		newMusic := &tuiMusic{
-			Music:              &music.Music{FilePath: path},
-			displayedTextWidth: &model.width,
-		}
-		err := newMusic.PopulateMusicMeta()
+		m, err := music.NewMusic(path)
 		if err != nil {
 			return nil, err
 		}
+
+		newMusic := &tuiMusic{
+			Music:              m,
+			displayedTextWidth: &model.width,
+		}
+
 		collection = append(collection, newMusic)
 	}
 
@@ -127,13 +132,13 @@ func generateMusicCollection(path string, textWidth *int) ([]list.Item, error) {
 			if f.IsDir() || !music.IsMusic(path) {
 				return
 			}
-			newMusic := &tuiMusic{
-				Music:              &music.Music{FilePath: path},
-				displayedTextWidth: textWidth,
-			}
-			err := newMusic.PopulateMusicMeta()
+			m, err := music.NewMusic(path)
 			if err != nil {
 				setErr(err)
+			}
+			newMusic := &tuiMusic{
+				Music:              m,
+				displayedTextWidth: textWidth,
 			}
 			mChan <- newMusic
 		}()

@@ -6,13 +6,19 @@ require (
 	github.com/charmbracelet/bubbles v0.18.0
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/dhowden/tag v0.0.0-20240413230847-dc579f508b6b
+	github.com/gopxl/beep v1.4.1
+	github.com/qeesung/image2ascii v1.0.1
 )
 
 require (
 	github.com/aybabtme/rgbterm v0.0.0-20170906152045-cc83f3b3ce59 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
+	github.com/ebitengine/oto/v3 v3.1.0 // indirect
+	github.com/ebitengine/purego v0.7.1 // indirect
+	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
-	github.com/qeesung/image2ascii v1.0.1 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/wayneashleyberry/terminal-dimensions v1.1.0 // indirect
 )
 

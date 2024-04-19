@@ -25,6 +25,9 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if item != nil {
 				m.selected = item.(*tuiMusic)
 			}
+		case "enter":
+			// TODO: use bubble tea cmds for this for god sake!!
+			go m.start(m.list.Index())
 		}
 	case gotImage:
 		if msg.idx != m.list.Index() {
@@ -62,4 +65,18 @@ func lazyLoadImageCmd(music *tuiMusic, height, width, idx int) tea.Cmd {
 		}
 		return gotImage{image: img, idx: idx}
 	}
+}
+
+func (m Model) start(idx int) {
+	for {
+		music := m.list.Items()[idx].(*tuiMusic).Music
+		m.controller.Play(music)
+		select {
+		case <-m.controller.Done:
+			idx++
+		case <-m.done:
+			return
+		}
+	}
+
 }

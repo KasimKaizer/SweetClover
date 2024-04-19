@@ -79,10 +79,11 @@ func (m *Music) GetCoverArtASCII(height, width int) (string, error) {
 			FitScreen:   true,
 			FixedHeight: height,
 			FixedWidth:  width,
-			// FixedHeight: int(float64(m.style.height) * 0.6),
-			// FixedWidth:  int(float64(m.style.width) * 0.35),
 		})
 	return image, nil
+}
+
+type Controller struct {
 }
 
 func IsMusic(file string) bool {

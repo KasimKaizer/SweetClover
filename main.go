@@ -21,7 +21,7 @@ import (
 
 type tuiMusic struct {
 	*music.Music
-	displayedTextWidth *int
+	width *int
 }
 
 func (m *tuiMusic) FilterValue() string {
@@ -29,11 +29,11 @@ func (m *tuiMusic) FilterValue() string {
 }
 
 func (m *tuiMusic) Title() string {
-	return truncate(m.Name, fineTuneSize(*m.displayedTextWidth, 0.3))
+	return truncate(m.Name, fineTuneSize(*m.width, 0.3))
 }
 
 func (m *tuiMusic) Description() string {
-	return truncate(m.Artist, fineTuneSize(*m.displayedTextWidth, 0.3))
+	return truncate(m.Artist, fineTuneSize(*m.width, 0.3))
 }
 
 /* End List Model */
@@ -41,18 +41,18 @@ func (m *tuiMusic) Description() string {
 /* Main Model */
 
 type Model struct {
-	selected     *tuiMusic
-	list         list.Model
-	progress     progress.Model
-	controller   *music.Controller
-	done         chan struct{}
-	displayedImg string
-	width        int
-	height       int
+	selected       *tuiMusic
+	list           list.Model
+	progress       progress.Model
+	controller     *music.Controller
+	done           chan struct{}
+	currentPlaying string
+	displayedImg   string
+	width          int
+	height         int
 }
 
 func newModel(path string) (*Model, error) {
-
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -61,7 +61,10 @@ func newModel(path string) (*Model, error) {
 	var collection []list.Item
 
 	model := &Model{
-		progress:   progress.New(progress.WithDefaultScaledGradient(), progress.WithoutPercentage()),
+		progress: progress.New(
+			progress.WithDefaultScaledGradient(),
+			progress.WithoutPercentage(),
+		),
 		controller: music.NewController(),
 	}
 
@@ -70,18 +73,15 @@ func newModel(path string) (*Model, error) {
 		if err != nil {
 			return nil, err
 		}
-
 	} else {
 		m, err := music.NewMusic(path)
 		if err != nil {
 			return nil, err
 		}
-
 		newMusic := &tuiMusic{
-			Music:              m,
-			displayedTextWidth: &model.width,
+			Music: m,
+			width: &model.width,
 		}
-
 		collection = append(collection, newMusic)
 	}
 
@@ -99,7 +99,7 @@ func newModel(path string) (*Model, error) {
 /* Implement Bubbletea model */
 
 func (m *Model) Init() tea.Cmd {
-	return nil
+	return m.progressCmd()
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -132,13 +132,13 @@ func generateMusicCollection(path string, textWidth *int) ([]list.Item, error) {
 			if f.IsDir() || !music.IsMusic(path) {
 				return
 			}
-			m, err := music.NewMusic(path)
+			m, musicErr := music.NewMusic(path)
 			if err != nil {
-				setErr(err)
+				setErr(musicErr)
 			}
 			newMusic := &tuiMusic{
-				Music:              m,
-				displayedTextWidth: textWidth,
+				Music: m,
+				width: textWidth,
 			}
 			mChan <- newMusic
 		}()
@@ -174,7 +174,7 @@ func main() {
 	}
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	p.SetWindowTitle("Sweet Clover")
-	if _, err := p.Run(); err != nil {
+	if _, err = p.Run(); err != nil {
 		log.Fatal(err)
 	}
 }

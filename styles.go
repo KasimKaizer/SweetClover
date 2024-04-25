@@ -20,9 +20,9 @@ ReleaseYear: %s
 )
 
 func (m *Model) formatMetaData(img string) string {
-
 	titleStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#9B9B9B")).
+		PaddingTop(fineTuneSize(m.height, 0.03)).
 		PaddingLeft(fineTuneSize(m.width, 0.075)).
 		Width(fineTuneSize(m.width, 0.5))
 
@@ -33,7 +33,7 @@ func (m *Model) formatMetaData(img string) string {
 	imgStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(
-			lipgloss.Color(lipgloss.Color("#3C3C3C")),
+			lipgloss.Color("#3C3C3C"),
 		)
 	return lipgloss.NewStyle().
 		Align(lipgloss.Left, lipgloss.Center).
@@ -59,7 +59,7 @@ func (m *Model) formatMetaData(img string) string {
 }
 
 func (m *Model) homePageView() string {
-	playingText := truncate(m.selected.Name, fineTuneSize(m.width, 0.3))
+	playingText := truncate(m.currentPlaying, fineTuneSize(m.width, 0.3))
 	playingTextPadding := fineTuneSize((fineTuneSize(m.width, 0.5) - lipgloss.Width(playingText)), 0.5)
 
 	return lipgloss.JoinHorizontal(lipgloss.Left,
@@ -80,7 +80,7 @@ func (m *Model) homePageView() string {
 			lipgloss.NewStyle().
 				PaddingTop(fineTuneSize(m.height, 0.03)).
 				PaddingLeft(fineTuneSize(m.width, 0.05)).
-				Render(m.progress.ViewAs(0.1)),
+				Render(m.progress.View()),
 			m.formatMetaData(m.displayedImg),
 		),
 	)

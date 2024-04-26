@@ -1,13 +1,11 @@
 package main
 
 import (
-	"cmp"
 	"errors"
 	"flag"
 	"log"
 	"os"
 	"path/filepath"
-	"slices"
 	"sync"
 
 	"github.com/KasimKaizer/SweetClover/internal/music"
@@ -29,11 +27,11 @@ func (m *tuiMusic) FilterValue() string {
 }
 
 func (m *tuiMusic) Title() string {
-	return truncate(m.Name, fineTuneSize(*m.width, 0.3))
+	return truncate(m.Name, fineTuneSize(*m.width, 0.3)) //nolint:gomnd // fineTuning
 }
 
 func (m *tuiMusic) Description() string {
-	return truncate(m.Artist, fineTuneSize(*m.width, 0.3))
+	return truncate(m.Artist, fineTuneSize(*m.width, 0.3)) //nolint:gomnd // fineTuning
 }
 
 /* End List Model */
@@ -41,7 +39,7 @@ func (m *tuiMusic) Description() string {
 /* Main Model */
 
 type Model struct {
-	selected       *tuiMusic
+	selectedIdx    int
 	list           list.Model
 	progress       progress.Model
 	controller     *music.Controller
@@ -60,7 +58,7 @@ func newModel(path string) (*Model, error) {
 
 	var collection []list.Item
 
-	model := &Model{
+	model := &Model{ //nolint:exhaustruct // its fine to have default values.
 		progress: progress.New(
 			progress.WithDefaultScaledGradient(),
 			progress.WithoutPercentage(),
@@ -74,9 +72,9 @@ func newModel(path string) (*Model, error) {
 			return nil, err
 		}
 	} else {
-		m, err := music.NewMusic(path)
-		if err != nil {
-			return nil, err
+		m, mErr := music.NewMusic(path)
+		if mErr != nil {
+			return nil, mErr
 		}
 		newMusic := &tuiMusic{
 			Music: m,
@@ -92,7 +90,6 @@ func newModel(path string) (*Model, error) {
 	model.list = list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
 	model.list.Title = filepath.Base(path)
 	model.list.SetItems(collection)
-	model.selected = collection[0].(*tuiMusic)
 	return model, nil
 }
 
@@ -142,9 +139,9 @@ func generateMusicCollection(path string, textWidth *int) ([]list.Item, error) {
 			}
 			mChan <- newMusic
 		}()
-		return nil // error will always be nil
+		return nil
 	}
-	filepath.Walk(path, walk)
+	_ = filepath.Walk(path, walk) // error ignored as its always nil.
 	go func() {
 		wg.Wait()
 		close(mChan)
@@ -158,9 +155,9 @@ func generateMusicCollection(path string, textWidth *int) ([]list.Item, error) {
 
 	// TODO: For some reason sorting doesn't work, check out how list components is
 	//       created, and if its possible to sort
-	slices.SortStableFunc(collection, func(a, b list.Item) int {
-		return cmp.Compare(a.(*tuiMusic).Name, b.(*tuiMusic).Name)
-	})
+	// slices.SortStableFunc(collection, func(a, b list.Item) int {
+	// 	return cmp.Compare(a.(*tuiMusic).Name, b.(*tuiMusic).Name)
+	// })
 	return collection, nil
 }
 

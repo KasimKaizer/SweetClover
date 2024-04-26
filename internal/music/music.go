@@ -96,10 +96,13 @@ func (m *Music) GetCoverArtASCII(height, width int) (string, error) {
 	}
 	image := convert.NewImageConverter().Image2ASCIIString(pic,
 		&convert.Options{
-			Colored:     true,
-			FitScreen:   true,
-			FixedHeight: height,
-			FixedWidth:  width,
+			Colored:         true,
+			FitScreen:       true,
+			FixedHeight:     height,
+			FixedWidth:      width,
+			Reversed:        false,
+			Ratio:           1,
+			StretchedScreen: false,
 		})
 	return image, nil
 }
@@ -107,14 +110,20 @@ func (m *Music) GetCoverArtASCII(height, width int) (string, error) {
 // Controller type controls playing music, and also represented its progress.
 type Controller struct {
 	speakerInitialized bool
-	streamer           *beep.Ctrl
+	ctrl               *beep.Ctrl
+	format             beep.Format
 	Done               chan struct{}
 }
 
 func NewController() *Controller {
+	var format beep.Format
+
 	done := make(chan struct{})
 	return &Controller{
-		Done: done,
+		Done:               done,
+		ctrl:               new(beep.Ctrl),
+		speakerInitialized: false,
+		format:             format,
 	}
 }
 
@@ -144,7 +153,7 @@ func (c *Controller) Play(m *Music) error {
 	}
 
 	if !c.speakerInitialized {
-		err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+		err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10)) //nolint:gomnd // fineTuning
 		if err != nil {
 			return err
 		}
@@ -157,8 +166,8 @@ func (c *Controller) Play(m *Music) error {
 	speaker.Play(beep.Seq(ctrl, beep.Callback(func() {
 		c.Done <- struct{}{}
 	})))
-
-	c.streamer = ctrl
+	c.format = format
+	c.ctrl = ctrl
 
 	return nil
 }
@@ -166,21 +175,39 @@ func (c *Controller) Play(m *Music) error {
 func (c *Controller) Progress() (float64, error) {
 	speaker.Lock()
 	defer speaker.Unlock()
-	if c.streamer == nil {
-		return 0, errors.New("music.Progress: streamer doesn't exist")
-	}
-	streamer, ok := c.streamer.Streamer.(beep.StreamSeeker)
-	if !ok {
-		return 0, errors.New("music.Progress: streamer is not a streamSeeker")
+	streamer, err := retrieveStreamer(c.ctrl)
+	if err != nil {
+		return 0, err
 	}
 	pos := (float64(streamer.Position()) / float64(streamer.Len()))
 	return pos, nil
 }
 
+func (c *Controller) SeekSeconds(step int) error {
+	speaker.Lock()
+	defer speaker.Unlock()
+	streamer, err := retrieveStreamer(c.ctrl)
+	if err != nil {
+		return err
+	}
+	seekTo := streamer.Position() + (step * c.format.SampleRate.N(time.Second))
+	if seekTo < 0 {
+		seekTo = 0
+	}
+	if seekTo > streamer.Len() {
+		seekTo = streamer.Len()
+	}
+	wasPaused := c.ctrl.Paused
+	c.ctrl.Paused = true
+	_ = streamer.Seek(seekTo)
+	c.ctrl.Paused = wasPaused
+	return nil
+}
+
 func (c *Controller) PauseResume() {
 	speaker.Lock()
 	defer speaker.Unlock()
-	c.streamer.Paused = !c.streamer.Paused
+	c.ctrl.Paused = !c.ctrl.Paused
 }
 
 func IsMusic(file string) bool {
@@ -189,4 +216,15 @@ func IsMusic(file string) bool {
 		return true
 	}
 	return false
+}
+
+func retrieveStreamer(ctrl *beep.Ctrl) (beep.StreamSeeker, error) {
+	if ctrl == nil {
+		return nil, errors.New("music.Progress: streamer doesn't exist")
+	}
+	streamer, ok := ctrl.Streamer.(beep.StreamSeeker)
+	if !ok {
+		return nil, errors.New("music.Progress: streamer is not a streamSeeker")
+	}
+	return streamer, nil
 }

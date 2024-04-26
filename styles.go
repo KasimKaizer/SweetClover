@@ -1,3 +1,4 @@
+//nolint:gomnd // Styles page contains many elements which are relatively sized sized thus magic numbers are inevitable.
 package main
 
 import (
@@ -20,6 +21,8 @@ ReleaseYear: %s
 )
 
 func (m *Model) formatMetaData(img string) string {
+	music, _ := m.list.VisibleItems()[m.selectedIdx].(*tuiMusic)
+
 	titleStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#9B9B9B")).
 		PaddingTop(fineTuneSize(m.height, 0.03)).
@@ -50,10 +53,10 @@ func (m *Model) formatMetaData(img string) string {
 			titleStyle.Render(
 				fmt.Sprintf(
 					_infoBoxTmpl,
-					textStyle.Render(truncate(m.selected.Name, fineTuneSize(m.width, 0.3))),
-					textStyle.Render(truncate(m.selected.Album, fineTuneSize(m.width, 0.3))),
-					textStyle.Render(truncate(m.selected.Artist, fineTuneSize(m.width, 0.3))),
-					textStyle.Render(strconv.Itoa(m.selected.ReleaseYear))),
+					textStyle.Render(truncate(music.Name, fineTuneSize(m.width, 0.3))),
+					textStyle.Render(truncate(music.Album, fineTuneSize(m.width, 0.3))),
+					textStyle.Render(truncate(music.Artist, fineTuneSize(m.width, 0.3))),
+					textStyle.Render(strconv.Itoa(music.ReleaseYear))),
 			),
 		)
 }

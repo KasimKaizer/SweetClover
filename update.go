@@ -3,15 +3,16 @@ package main
 import (
 	"time"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
-
 	var listCmd tea.Cmd
 	m.list, listCmd = m.list.Update(msg)
+	m.list = fixKeyBinding(m.list)
 	cmds = append(cmds, listCmd)
 
 	switch msg := msg.(type) {
@@ -30,12 +31,15 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 		musicCmd := m.playMusicCmd(msg.idx)
 		cmds = append(cmds, musicCmd)
 	case tea.KeyMsg:
+		if m.list.FilterState() == list.Filtering {
+			break
+		}
 		switch msg.String() {
 		case "up", "k", "down", "j", "right", "left":
 			m.selectedIdx = m.list.Index()
 			m.displayedImg = "LOADING..."
 			cmds = append(cmds, m.lazyLoadImageCmd(m.selectedIdx))
-		case "o":
+		case "o", " ":
 			m.controller.PauseResume()
 		case "p":
 			_ = m.controller.SeekSeconds(10) // TODO: DISPLAY ERROR TO USER
@@ -86,6 +90,12 @@ func (m *Model) lazyLoadImageCmd(idx int) tea.Cmd {
 	}
 }
 
+func fixKeyBinding(listModel list.Model) list.Model {
+	listModel.KeyMap.GoToStart.SetEnabled(false)
+	listModel.KeyMap.GoToEnd.SetEnabled(false)
+	return listModel
+}
+
 type playMusic struct {
 	idx             int
 	continuePlaying bool
@@ -94,12 +104,12 @@ type playMusic struct {
 
 func (m *Model) playMusicCmd(idx int) tea.Cmd {
 	return func() tea.Msg {
-		list := m.list.VisibleItems()
-		music, _ := list[idx].(*tuiMusic)
+		items := m.list.VisibleItems()
+		music, _ := items[idx].(*tuiMusic)
 		_ = m.controller.Play(music.Music) // TODO: implement error checking here.
 		select {
 		case <-m.controller.Done:
-			next := (idx + 1) % len(list)
+			next := (idx + 1) % len(items)
 			return playMusic{idx: next, continuePlaying: true}
 		case <-m.done:
 			return playMusic{idx: 0, continuePlaying: false}
@@ -110,7 +120,7 @@ func (m *Model) playMusicCmd(idx int) tea.Cmd {
 type progressStatus float64
 
 func (m *Model) progressCmd() tea.Cmd {
-	return tea.Tick(time.Second/2, func(time.Time) tea.Msg { //nolint:gomnd // fineTuning
+	return tea.Tick(time.Second, func(time.Time) tea.Msg { //nolint:gomnd // fineTuning
 		prog, err := m.controller.Progress()
 		if err != nil {
 			prog = 0

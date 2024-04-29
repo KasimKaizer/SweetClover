@@ -94,7 +94,7 @@ func (m *Music) GetCoverArtASCII(height, width int) (string, error) {
 	if err != nil {
 		return _defaultImg, err
 	}
-	image := convert.NewImageConverter().Image2ASCIIString(pic,
+	asciiString := convert.NewImageConverter().Image2ASCIIString(pic,
 		&convert.Options{
 			Colored:         true,
 			FitScreen:       true,
@@ -104,7 +104,7 @@ func (m *Music) GetCoverArtASCII(height, width int) (string, error) {
 			Ratio:           1,
 			StretchedScreen: false,
 		})
-	return image, nil
+	return asciiString, nil
 }
 
 // Controller type controls playing music, and also represented its progress.
@@ -148,7 +148,7 @@ func (c *Controller) Play(m *Music) error {
 		return errors.New("music.Controller.Play: unsupported format")
 	}
 	if err != nil {
-		f.Close()
+		_ = f.Close()
 		return err
 	}
 
@@ -179,7 +179,7 @@ func (c *Controller) Progress() (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	pos := (float64(streamer.Position()) / float64(streamer.Len()))
+	pos := float64(streamer.Position()) / float64(streamer.Len())
 	return pos, nil
 }
 

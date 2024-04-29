@@ -1,4 +1,4 @@
-//nolint:gomnd // Styles page contains many elements which are relatively sized sized thus magic numbers are inevitable.
+//nolint:gomnd // Styles page contains many elements which are relatively sized thus magic numbers are inevitable.
 package main
 
 import (
@@ -63,7 +63,7 @@ func (m *Model) formatMetaData(img string) string {
 
 func (m *Model) homePageView() string {
 	playingText := truncate(m.currentPlaying, fineTuneSize(m.width, 0.3))
-	playingTextPadding := fineTuneSize((fineTuneSize(m.width, 0.5) - lipgloss.Width(playingText)), 0.5)
+	playingTextPadding := fineTuneSize(fineTuneSize(m.width, 0.5)-lipgloss.Width(playingText), 0.5)
 
 	return lipgloss.JoinHorizontal(lipgloss.Left,
 		lipgloss.Place(

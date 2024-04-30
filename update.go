@@ -8,11 +8,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+const (
+	_skipForwardSec   = 10
+	_skipBackwardsSec = -10
+)
+
 func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// TODO: Cut down this big function.
 	var cmds []tea.Cmd
 	var listCmd tea.Cmd
 	m.list, listCmd = m.list.Update(msg)
-	m.list = fixKeyBinding(m.list)
+	m.list = fixListKeyBinding(m.list)
 	cmds = append(cmds, listCmd)
 
 	switch msg := msg.(type) {
@@ -42,9 +48,15 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "o", " ":
 			m.controller.PauseResume()
 		case "p":
-			_ = m.controller.SeekSeconds(10) // TODO: DISPLAY ERROR TO USER
+			err := m.controller.SeekSeconds(_skipForwardSec)
+			if err != nil {
+				cmds = append(cmds, errorCmd(err.Error()))
+			}
 		case "i":
-			_ = m.controller.SeekSeconds(-10) // TODO: DISPLAY ERROR TO USER
+			err := m.controller.SeekSeconds(_skipBackwardsSec)
+			if err != nil {
+				cmds = append(cmds, errorCmd(err.Error()))
+			}
 		case "enter":
 			if m.done == nil {
 				m.done = make(chan struct{})
@@ -66,12 +78,14 @@ func (m *Model) updateHomeScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 		progressModel, progCmd := m.progress.Update(msg)
 		m.progress, _ = progressModel.(progress.Model)
 		cmds = append(cmds, progCmd)
+	case cmdError:
+		cmd := m.list.NewStatusMessage(msg.msg)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
-/* End of Bubble Tea required methods. */
 type gotImage struct {
 	image string
 	idx   int
@@ -90,23 +104,22 @@ func (m *Model) lazyLoadImageCmd(idx int) tea.Cmd {
 	}
 }
 
-func fixKeyBinding(listModel list.Model) list.Model {
-	listModel.KeyMap.GoToStart.SetEnabled(false)
-	listModel.KeyMap.GoToEnd.SetEnabled(false)
-	return listModel
-}
-
 type playMusic struct {
 	idx             int
 	continuePlaying bool
-	// err error // TODO: implement error handling for this cmd
 }
 
 func (m *Model) playMusicCmd(idx int) tea.Cmd {
 	return func() tea.Msg {
 		items := m.list.VisibleItems()
-		music, _ := items[idx].(*tuiMusic)
-		_ = m.controller.Play(music.Music) // TODO: implement error checking here.
+		music, ok := items[idx].(*tuiMusic)
+		if !ok {
+			return errorCmd("playMusicCmd: item is not tuiMusic")
+		}
+		err := m.controller.Play(music.Music)
+		if err != nil {
+			return errorCmd(err.Error())
+		}
 		select {
 		case <-m.controller.Done:
 			next := (idx + 1) % len(items)
@@ -120,11 +133,27 @@ func (m *Model) playMusicCmd(idx int) tea.Cmd {
 type progressStatus float64
 
 func (m *Model) progressCmd() tea.Cmd {
-	return tea.Tick(time.Second, func(time.Time) tea.Msg { //nolint:gomnd // fineTuning
+	return tea.Tick((time.Second * 1), func(time.Time) tea.Msg {
 		prog, err := m.controller.Progress()
 		if err != nil {
 			prog = 0
 		}
 		return progressStatus(prog)
 	})
+}
+
+type cmdError struct {
+	msg string
+}
+
+func errorCmd(msg string) tea.Cmd {
+	return func() tea.Msg {
+		return cmdError{msg: msg}
+	}
+}
+
+func fixListKeyBinding(listModel list.Model) list.Model {
+	listModel.KeyMap.GoToStart.SetEnabled(false)
+	listModel.KeyMap.GoToEnd.SetEnabled(false)
+	return listModel
 }

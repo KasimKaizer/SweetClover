@@ -10,6 +10,7 @@ import (
 
 	"github.com/KasimKaizer/SweetClover/internal/music"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
@@ -87,7 +88,12 @@ func newModel(path string) (*Model, error) {
 		return nil, errors.New("no music files in the provided path")
 	}
 
-	model.list = list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+	delegate := list.NewDefaultDelegate()
+	keys := newExtraKeyMap()
+	delegate.FullHelpFunc = func() [][]key.Binding {
+		return [][]key.Binding{{keys.TogglePlay, keys.TogglePausePlay, keys.SeekForward, keys.SeekBackward}}
+	}
+	model.list = list.New([]list.Item{}, delegate, 0, 0)
 	model.list.Title = filepath.Base(path)
 	model.list.SetItems(collection)
 	return model, nil
@@ -159,6 +165,34 @@ func generateMusicCollection(path string, textWidth *int) ([]list.Item, error) {
 	// 	return cmp.Compare(a.(*tuiMusic).Name, b.(*tuiMusic).Name)
 	// })
 	return collection, nil
+}
+
+type extraKeyMap struct {
+	SeekBackward    key.Binding
+	TogglePausePlay key.Binding
+	SeekForward     key.Binding
+	TogglePlay      key.Binding
+}
+
+func newExtraKeyMap() *extraKeyMap {
+	return &extraKeyMap{
+		SeekBackward: key.NewBinding(
+			key.WithKeys("i"),
+			key.WithHelp("i", "seek backwards"),
+		),
+		TogglePausePlay: key.NewBinding(
+			key.WithKeys("o", " "),
+			key.WithHelp("s/leader", "pause/resume"),
+		),
+		SeekForward: key.NewBinding(
+			key.WithKeys("p"),
+			key.WithHelp("p", "seek forward"),
+		),
+		TogglePlay: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "play music"),
+		),
+	}
 }
 
 func main() {
